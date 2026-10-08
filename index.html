@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta name="theme-color" content="#1f4d2b">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Registro de supervisión</title>
+<style>
+  :root{
+    --verde:#1f4d2b; --verde2:#2e6b3d; --verdeClaro:#e7f1e9; --cafe:#6b4226; --rojo:#b3261e;
+    --gris:#5f6368; --borde:#d7dcd8; --fondo:#f4f6f4; --blanco:#fff; --ambar:#b26a00;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--fondo);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1d1d1d;font-size:16px}
+  header{position:sticky;top:0;z-index:5;background:var(--verde);color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+  #estadoSync{font-size:12px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.18);white-space:nowrap;cursor:pointer}
+  #estadoSync.ok{background:#2f8f46}#estadoSync.pend{background:var(--ambar)}#estadoSync.off{background:#7a7a7a}#estadoSync.err{background:var(--rojo)}
+  main{max-width:640px;margin:0 auto;padding:12px 16px 90px}
+  .card{background:var(--blanco);border:1px solid var(--borde);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card h2{font-size:15px;margin:0 0 10px;color:var(--verde);display:flex;align-items:center;gap:8px}
+  .num{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--verde);color:#fff;font-size:12px;align-items:center;justify-content:center;flex:none}
+  label{display:block;font-size:13px;color:var(--gris);margin:8px 0 4px}
+  select,input[type=text],textarea{width:100%;font-size:16px;padding:11px 12px;border:1px solid var(--borde);border-radius:10px;background:#fff;color:#1d1d1d;font-family:inherit}
+  textarea{min-height:70px;resize:vertical}
+  select:disabled{background:#f1f1f1;color:#444}
+  .fila{display:flex;gap:8px;align-items:stretch}.fila>*{flex:1}
+  .oculto{display:none!important}
+  button{font-family:inherit;font-size:16px;border:0;border-radius:12px;padding:12px 14px;cursor:pointer;font-weight:600}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .btn{background:var(--verde2);color:#fff}
+  .btn2{background:var(--verdeClaro);color:var(--verde)}
+  .btnGrande{width:100%;padding:18px;font-size:19px;border-radius:14px;margin-top:12px}
+  .btnInicio{background:var(--verde);color:#fff}
+  .btnFin{background:var(--rojo);color:#fff}
+  .chip{display:inline-block;font-size:12px;padding:3px 8px;border-radius:999px;background:var(--verdeClaro);color:var(--verde);margin-right:4px}
+  .info{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
+  .info b{color:var(--gris);font-weight:500}
+  .reloj{font-size:28px;font-weight:700;color:var(--verde);font-variant-numeric:tabular-nums;margin-top:6px}
+  ul.lista{list-style:none;padding:0;margin:10px 0 0}
+  ul.lista li{border-top:1px solid var(--borde);padding:9px 0;font-size:14px;display:flex;gap:10px;align-items:flex-start}
+  ul.lista li .hora{font-variant-numeric:tabular-nums;color:var(--cafe);font-weight:700;min-width:62px}
+  ul.lista li .det{flex:1}
+  ul.lista li small{color:var(--gris);display:block}
+  .thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .thumbs .t{position:relative}
+  .thumbs img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--borde);display:block}
+  .thumbs .x{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;padding:0;background:var(--rojo);color:#fff;font-size:13px;line-height:22px}
+  .estadoFoto{font-size:11px;color:var(--gris)}
+  .aviso{font-size:13px;padding:10px 12px;border-radius:10px;margin-top:10px;background:#fff6e5;color:#6b4500;border:1px solid #f1d59b}
+  .aviso.ok{background:var(--verdeClaro);color:var(--verde);border-color:#bcd8c2}
+  .aviso.err{background:#fdecea;color:var(--rojo);border-color:#f3b8b3}
+  .vacio{font-size:13px;color:var(--gris);margin-top:8px}
+  .fotoBtn{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--verdeClaro);color:var(--verde);border-radius:12px;padding:12px;font-weight:600;cursor:pointer;border:1px dashed #9cc3a5}
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+  #modal .caja{background:#fff;border-radius:16px;max-width:420px;width:100%;padding:18px}
+  #modal h3{margin:0 0 8px;font-size:17px}
+  #modal p{margin:0 0 12px;font-size:14px;color:#333}
+  #modal .acciones{display:flex;gap:8px;flex-wrap:wrap}#modal .acciones button{flex:1}
+  #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;max-width:90vw;opacity:0;transition:opacity .25s;pointer-events:none}
+  #toast.ver{opacity:.95}
+  .pie{font-size:11px;color:var(--gris);text-align:center;margin-top:16px}
+  .enlace{background:none;border:0;color:var(--verde2);font-size:12px;text-decoration:underline;padding:6px;font-weight:500}
+  #bannerInstalar{display:flex;gap:8px;align-items:center;justify-content:space-between}
+</style>
+</head>
+<body>
+<header>
+  <h1>Registro de supervisión</h1>
+  <span id="estadoSync" title="Toque para sincronizar">…</span>
+</header>
+
+<main>
+  <!-- ============ PANTALLA: CÓDIGO DE ACCESO ============ -->
+  <section id="pClave" class="oculto">
+    <div class="card">
+      <h2><span class="num">🔒</span> Código de acceso</h2>
+      <div class="vacio">Escriba el código que le dio su supervisor. Solo se pide una vez en este teléfono.</div>
+      <label for="inClave">Código</label>
+      <input type="text" id="inClave" autocomplete="off" autocapitalize="characters" placeholder="Código de acceso">
+      <button class="btn" style="width:100%;margin-top:10px" onclick="guardarClave()">Guardar código</button>
+      <div id="avisoClave"></div>
+    </div>
+  </section>
+
+  <div id="bannerInstalar" class="card oculto">
+    <span style="font-size:14px">📲 Instale la app para usarla sin internet.</span>
+    <button class="btn" onclick="instalarApp()">Instalar</button>
+  </div>
+
+  <!-- ============ PANTALLA: INICIO DE JORNADA ============ -->
+  <section id="pInicio">
+    <div class="card">
+      <h2><span class="num">1</span> Funcionario y lugar de trabajo</h2>
+      <label for="selFuncionario">Funcionario</label>
+      <select id="selFuncionario"></select>
+      <div id="nuevoFuncionarioBox" class="fila oculto" style="margin-top:8px">
+        <input type="text" id="nuevoFuncionario" data-draft="nuevoFuncionario" placeholder="Nombre del funcionario">
+        <button class="btn" style="flex:0 0 auto" onclick="agregarExtra('Funcionarios','nuevoFuncionario','selFuncionario')">Agregar</button>
+      </div>
+
+      <label for="selLugar">Lugar de trabajo (finca)</label>
+      <select id="selLugar"></select>
+      <div id="nuevoLugarBox" class="fila oculto" style="margin-top:8px">
+        <input type="text" id="nuevoLugar" data-draft="nuevoLugar" placeholder="Nombre del nuevo lugar">
+        <button class="btn" style="flex:0 0 auto" onclick="agregarExtra('Lugares','nuevoLugar','selLugar')">Agregar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">2</span> Inicio de labor</h2>
+      <div class="vacio">La fecha y la hora se registran automáticamente al presionar el botón.</div>
+      <button id="btnIniciar" class="btnGrande btnInicio" onclick="iniciarJornada()">▶ Iniciar labor</button>
+    </div>
+
+    <div id="resumenFinal"></div>
+    <div id="historialBox" class="card oculto">
+      <h2>Jornadas recientes en este teléfono</h2>
+      <ul class="lista" id="historial"></ul>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA: JORNADA ACTIVA ============ -->
+  <section id="pJornada" class="oculto">
+    <div class="card">
+      <h2><span class="num">✓</span> Jornada en curso</h2>
+      <div class="info" id="infoJornada"></div>
+      <div class="reloj" id="reloj">00:00:00</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">3</span> Actividad realizada</h2>
+      <label for="selActividad">Actividad</label>
+      <select id="selActividad" data-draft="actSel"></select>
+      <div id="actOtraBox" class="oculto">
+        <label for="actOtra">Nombre de la actividad no contemplada</label>
+        <input type="text" id="actOtra" data-draft="actOtra" placeholder="Escriba la actividad">
+      </div>
+      <label for="actComent">Detalle (opcional): lote, cuadrilla, avance…</label>
+      <input type="text" id="actComent" data-draft="actComent" placeholder="Ej.: Lote 4, 6 trabajadores, 1,5 ha">
+      <button class="btn" style="width:100%;margin-top:10px" onclick="registrarActividad()">＋ Registrar actividad (hora automática)</button>
+      <ul class="lista" id="listaActividades"></ul>
+      <div class="vacio" id="sinActividades">Aún no hay actividades registradas.</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">4</span> Evidencia: fotos y comentarios</h2>
+      <label for="evAct">Asociar a la actividad</label>
+      <select id="evAct" data-draft="evAct"></select>
+      <label>Fotos</label>
+      <label class="fotoBtn" for="inFoto">📷 Tomar o elegir fotos</label>
+      <input type="file" id="inFoto" accept="image/*" capture="environment" multiple class="oculto">
+      <div class="thumbs" id="thumbsBorrador"></div>
+      <label for="evComent">Comentario</label>
+      <textarea id="evComent" data-draft="evComent" placeholder="Observaciones de campo"></textarea>
+      <button class="btn" style="width:100%;margin-top:10px" onclick="guardarEvidencia()">💾 Guardar evidencia</button>
+      <ul class="lista" id="listaEvidencias"></ul>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">5</span> Finalizar día de trabajo</h2>
+      <div class="vacio">Registra fecha, hora y ubicación GPS de forma automática. Active la ubicación del teléfono.</div>
+      <button id="btnFinalizar" class="btnGrande btnFin" onclick="pedirFinalizar()">■ Finalizar día de trabajo</button>
+      <div id="avisoFin"></div>
+    </div>
+  </section>
+
+  <div class="pie" id="pie"></div>
+  <div style="text-align:center"><button class="enlace" onclick="cambiarClave()">Cambiar código de acceso</button></div>
+</main>
+
+<div id="modal" class="oculto"><div class="caja"><h3 id="mTit"></h3><p id="mTxt"></p><div class="acciones" id="mAcc"></div></div></div>
+<div id="toast"></div>
+
+<script>
+/* =====================================================================
+   REGISTRO DE SUPERVISIÓN — cliente
+   - Todo cambio se guarda al instante en el teléfono (localStorage + IndexedDB).
+   - Si se recarga la página, se recupera exactamente donde quedó, incluidos
+     textos a medio escribir y fotos aún no guardadas.
+   - La sincronización con Google Drive/Sheets es automática y se reintenta
+     hasta que todo quede arriba.
+   ===================================================================== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbwLar75o6WPnMMVefVmTTcLxhWFy2lFpfdsmdfL0KDRb7P_2_StQaRdDSTqVsba29xF/exec';
+const SERVER = true;
+const LS_KEY = 'registroSupervision_v1';
+const OTRO = '__otro__';
+
+/* ---------- Almacenamiento local (IndexedDB con respaldo) ---------- */
+const KV = (() => {
+  let dbP = null; const mem = {};
+  function open() {
+    if (dbP) return dbP;
+    dbP = new Promise((res) => {
+      try {
+        const r = indexedDB.open('registroSupervision', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('kv');
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => res(null);
+      } catch (e) { res(null); }
+    });
+    return dbP;
+  }
+  async function tx(mode, fn) {
+    const db = await open(); if (!db) return undefined;
+    return new Promise((res) => {
+      try {
+        const t = db.transaction('kv', mode); const st = t.objectStore('kv'); const rq = fn(st);
+        t.oncomplete = () => res(rq ? rq.result : undefined); t.onerror = () => res(undefined);
+      } catch (e) { res(undefined); }
+    });
+  }
+  return {
+    async get(k) {
+      const v = await tx('readonly', s => s.get(k));
+      if (v !== undefined) return v;
+      if (k in mem) return mem[k];
+      try { const l = localStorage.getItem('rsf_' + k); if (l) return JSON.parse(l); } catch (e) {}
+      return undefined;
+    },
+    async set(k, v) {
+      const db = await open();
+      if (db) { await tx('readwrite', s => s.put(v, k)); return; }
+      mem[k] = v; try { localStorage.setItem('rsf_' + k, JSON.stringify(v)); } catch (e) {}
+    },
+    async del(k) { await tx('readwrite', s => s.delete(k)); delete mem[k]; try { localStorage.removeItem('rsf_' + k); } catch (e) {} }
+  };
+})();
+
+/* ---------- Estado ---------- */
+let S = estadoVacio();
+function estadoVacio() {
+  return {
+    ts: 0, clave: '', funcionario: '', lugar: '',
+    catalogos: { Lugares: ['San Carlos', 'La Sierra'], Actividades: [
+      'Chapia / control manual de malezas', 'Aplicación de herbicida', 'Deshija', 'Poda / recepa',
+      'Fertilización química', 'Encalado', 'Abono orgánico', 'Atomización (fungicida/insecticida)',
+      'Drench', 'Aplicación de Trichoderma', 'Resiembra', 'Siembra', 'Control de broca',
+      'Manejo de sombra', 'Cosecha', 'Estimación de cosecha', 'Muestreo de suelo / foliar',
+      'Mantenimiento de caminos y drenajes', 'Supervisión de cuadrillas', 'Inspección fitosanitaria'], Funcionarios: [] },
+    extras: { Lugares: [], Actividades: [], Funcionarios: [] },
+    activa: null, pendientes: [], historial: [], ultimoResumen: null,
+    borrador: { nuevoFuncionario: '', nuevoLugar: '', actSel: '', actOtra: '', actComent: '', evAct: '', evComent: '', evFotos: [] },
+    ultimaSync: '', ultimoError: ''
+  };
+}
+
+let tGuardar = null;
+function guardar(inmediato) {
+  S.ts = Date.now();
+  try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {}
+  clearTimeout(tGuardar);
+  const f = () => KV.set('estado', JSON.parse(JSON.stringify(S)));
+  if (inmediato) f(); else tGuardar = setTimeout(f, 250);
+}
+async function cargar() {
+  let a = null, b = null;
+  try { a = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) {}
+  try { b = await KV.get('estado'); } catch (e) {}
+  const elegido = [a, b].filter(Boolean).sort((x, y) => (y.ts || 0) - (x.ts || 0))[0];
+  if (elegido) {
+    const base = estadoVacio();
+    S = Object.assign(base, elegido);
+    S.borrador = Object.assign(estadoVacio().borrador, elegido.borrador || {});
+    S.extras = Object.assign(estadoVacio().extras, elegido.extras || {});
+  }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardar(true); });
+window.addEventListener('pagehide', () => guardar(true));
+
+/* ---------- Utilidades ---------- */
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+function sello(d) {
+  d = d || new Date();
+  return { iso: d.toISOString(), fecha: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()),
+           hora: pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) };
+}
+function uid(p) { return p + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function unicos(arr) { const v = new Set(); return arr.filter(x => { const k = (x || '').trim().toLowerCase(); if (!k || v.has(k)) return false; v.add(k); return true; }); }
+function lista(tipo) { return unicos([...(S.catalogos[tipo] || []), ...(S.extras[tipo] || [])]); }
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('ver'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('ver'), 2600); }
+function modal(titulo, texto, botones) {
+  $('mTit').textContent = titulo; $('mTxt').innerHTML = texto; const acc = $('mAcc'); acc.innerHTML = '';
+  botones.forEach(b => { const el = document.createElement('button'); el.textContent = b.t; el.className = b.c || 'btn2';
+    el.onclick = () => { $('modal').classList.add('oculto'); b.f && b.f(); }; acc.appendChild(el); });
+  $('modal').classList.remove('oculto');
+}
+function posicion(alta, timeout, maxAge) {
+  return new Promise(res => {
+    if (!navigator.geolocation) return res({ error: 'Este dispositivo no permite obtener la ubicación.' });
+    navigator.geolocation.getCurrentPosition(
+      p => res({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), precision: Math.round(p.coords.accuracy) }),
+      e => res({ error: e.code === 1 ? 'Permiso de ubicación denegado. Actívelo en el navegador.' : e.code === 3 ? 'Tiempo agotado buscando señal GPS.' : 'No se pudo obtener la ubicación.' }),
+      { enableHighAccuracy: !!alta, timeout: timeout || 10000, maximumAge: maxAge == null ? 300000 : maxAge });
+  });
+}
+function comprimir(file, max, q) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => { const img = new Image();
+      img.onload = () => { let w = img.width, h = img.height; const k = Math.min(1, max / Math.max(w, h)); w = Math.round(w * k); h = Math.round(h * k);
+        const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(img, 0, 0, w, h); res(c.toDataURL('image/jpeg', q)); };
+      img.onerror = rej; img.src = fr.result; };
+    fr.onerror = rej; fr.readAsDataURL(file);
+  });
+}
+/* Comunicación con Google Drive (Apps Script) */
+async function rpc(fn, ...args) {
+  let body;
+  if (fn === 'getCatalogos') body = { accion: 'catalogos' };
+  else if (fn === 'sincronizarJornada') body = { accion: 'jornada', datos: args[0] };
+  else if (fn === 'subirFoto') body = { accion: 'foto', jornadaId: args[0], evidenciaId: args[1], dataUrl: args[2], meta: args[3] };
+  else body = { accion: fn };
+  body.clave = S.clave;
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 90000);
+  try {
+    const resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                                        body: JSON.stringify(body), signal: ctl.signal, redirect: 'follow' });
+    if (!resp.ok) throw new Error('El servidor respondió ' + resp.status);
+    const j = await resp.json();
+    if (!j.ok) throw new Error(j.error || 'Error del servidor');
+    return j.r;
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Tiempo de espera agotado');
+    if (e instanceof TypeError) throw new Error('Sin conexión con el servidor');
+    throw e;
+  } finally { clearTimeout(t); }
+}
+
+/* Código de acceso */
+async function guardarClave() {
+  const v = $('inClave').value.trim();
+  if (!v) return toast('Escriba el código');
+  const anterior = S.clave; S.clave = v;
+  $('avisoClave').innerHTML = '<div class="aviso">Verificando…</div>';
+  if (navigator.onLine) {
+    try { await rpc('ping'); }
+    catch (e) {
+      if (/código/i.test(e.message)) { S.clave = anterior; $('avisoClave').innerHTML = '<div class="aviso err">Código incorrecto.</div>'; return; }
+      // sin conexión real: se acepta y se verifica al sincronizar
+    }
+  }
+  $('avisoClave').innerHTML = ''; S.ultimoError = '';
+  guardar(true); render(); toast('Código guardado');
+  cargarCatalogos(); programarSync(500);
+}
+function cambiarClave() { S.clave = ''; guardar(true); render(); }
+
+/* Instalación como app */
+let eventoInstalar = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); eventoInstalar = e; $('bannerInstalar').classList.remove('oculto'); });
+async function instalarApp() { if (!eventoInstalar) return; eventoInstalar.prompt(); await eventoInstalar.userChoice; eventoInstalar = null; $('bannerInstalar').classList.add('oculto'); }
+window.addEventListener('appinstalled', () => $('bannerInstalar').classList.add('oculto'));
+function marcarCambio() { if (S.activa) S.activa.rev = (S.activa.rev || 0) + 1; guardar(); render(); programarSync(); }
+
+/* ---------- Borradores: todo lo escrito se guarda al instante ---------- */
+function enlazarBorradores() {
+  document.querySelectorAll('[data-draft]').forEach(el => {
+    const k = el.dataset.draft;
+    const ev = el.tagName === 'SELECT' ? 'change' : 'input';
+    el.addEventListener(ev, () => { S.borrador[k] = el.value; guardar(); if (k === 'actSel') mostrarOtra(); });
+  });
+  $('selFuncionario').addEventListener('change', e => {
+    const v = e.target.value; $('nuevoFuncionarioBox').classList.toggle('oculto', v !== OTRO);
+    if (v !== OTRO) { S.funcionario = v; guardar(); } else $('nuevoFuncionario').focus();
+  });
+  $('selLugar').addEventListener('change', e => {
+    const v = e.target.value; $('nuevoLugarBox').classList.toggle('oculto', v !== OTRO);
+    if (v !== OTRO) { S.lugar = v; guardar(); } else $('nuevoLugar').focus();
+  });
+  $('inFoto').addEventListener('change', agregarFotosBorrador);
+}
+function mostrarOtra() { $('actOtraBox').classList.toggle('oculto', $('selActividad').value !== OTRO); }
+
+function agregarExtra(tipo, inputId, selId) {
+  const v = $(inputId).value.trim();
+  if (!v) return toast('Escriba un nombre');
+  if (!lista(tipo).some(x => x.toLowerCase() === v.toLowerCase())) S.extras[tipo].push(v);
+  if (tipo === 'Funcionarios') S.funcionario = v; else S.lugar = v;
+  S.borrador[inputId] = ''; $(inputId).value = '';
+  $(selId === 'selLugar' ? 'nuevoLugarBox' : 'nuevoFuncionarioBox').classList.add('oculto');
+  guardar(); render(); toast('Agregado: ' + v);
+}
+
+/* ---------- 2. Iniciar jornada ---------- */
+async function iniciarJornada() {
+  if (!S.funcionario || S.funcionario === OTRO) return toast('Seleccione el funcionario');
+  if (!S.lugar || S.lugar === OTRO) return toast('Seleccione el lugar de trabajo');
+  const s = sello();
+  S.activa = { id: uid('J'), funcionario: S.funcionario, lugar: S.lugar, dispositivo: navigator.userAgent.slice(0, 120),
+               inicio: s, actividades: [], evidencias: [], fin: null, estado: 'en_curso', rev: 1, revSinc: 0 };
+  S.ultimoResumen = null;
+  guardar(true); render(); programarSync(); toast('Labor iniciada ' + s.hora);
+  const j = S.activa; const p = await posicion(true, 15000, 60000);
+  if (j === S.activa && !p.error) { j.inicio.lat = p.lat; j.inicio.lng = p.lng; j.inicio.precision = p.precision; marcarCambio(); }
+}
+
+/* ---------- 3. Actividades ---------- */
+async function registrarActividad() {
+  const j = S.activa; if (!j) return;
+  let nombre = $('selActividad').value;
+  if (!nombre) return toast('Seleccione una actividad');
+  if (nombre === OTRO) {
+    nombre = $('actOtra').value.trim();
+    if (!nombre) return toast('Escriba el nombre de la actividad');
+    if (!lista('Actividades').some(x => x.toLowerCase() === nombre.toLowerCase())) S.extras.Actividades.push(nombre);
+  }
+  const s = sello();
+  const a = { id: uid('A'), nombre, comentario: $('actComent').value.trim(), fecha: s.fecha, hora: s.hora, iso: s.iso };
+  j.actividades.push(a);
+  Object.assign(S.borrador, { actSel: '', actOtra: '', actComent: '', evAct: a.id });
+  marcarCambio(); toast('Actividad registrada ' + s.hora);
+  const p = await posicion(false, 10000, 300000);
+  if (!p.error) { a.lat = p.lat; a.lng = p.lng; marcarCambio(); }
+}
+
+/* ---------- 4. Evidencias ---------- */
+async function agregarFotosBorrador(e) {
+  const files = [...e.target.files]; e.target.value = '';
+  for (const f of files) {
+    try {
+      const full = await comprimir(f, 1600, 0.72); const thumb = await comprimir(f, 220, 0.6);
+      const id = uid('E'); await KV.set('f:' + id, full);
+      S.borrador.evFotos.push({ id, thumb }); guardar(); renderBorradorFotos();
+    } catch (err) { toast('No se pudo leer una foto'); }
+  }
+}
+async function quitarFotoBorrador(id) {
+  S.borrador.evFotos = S.borrador.evFotos.filter(f => f.id !== id); await KV.del('f:' + id); guardar(); renderBorradorFotos();
+}
+async function guardarEvidencia() {
+  const j = S.activa; if (!j) return;
+  const coment = $('evComent').value.trim(); const fotos = S.borrador.evFotos.slice();
+  if (!fotos.length && !coment) return toast('Agregue una foto o un comentario');
+  const actId = $('evAct').value; const act = j.actividades.find(a => a.id === actId);
+  const s = sello(); const p = await posicion(false, 8000, 300000);
+  const base = { actividadId: act ? act.id : '', actividadNombre: act ? act.nombre : 'General', comentario: coment,
+                 fecha: s.fecha, hora: s.hora, lat: p.error ? null : p.lat, lng: p.error ? null : p.lng };
+  if (fotos.length) fotos.forEach(f => j.evidencias.push(Object.assign({ id: f.id, tieneFoto: true, fotoSubida: false, thumb: f.thumb }, base)));
+  else j.evidencias.push(Object.assign({ id: uid('E'), tieneFoto: false }, base));
+  S.borrador.evFotos = []; S.borrador.evComent = '';
+  marcarCambio(); toast('Evidencia guardada');
+}
+
+/* ---------- 5. Finalizar ---------- */
+function pedirFinalizar() {
+  const j = S.activa; if (!j) return;
+  const b = S.borrador; const pend = [];
+  if (b.actComent || b.actOtra) pend.push('una actividad sin registrar');
+  if (b.evFotos.length || b.evComent) pend.push('una evidencia sin guardar');
+  const aviso = pend.length ? '<br><br><b style="color:#b3261e">Atención:</b> hay ' + pend.join(' y ') + '. Si continúa, quedará fuera de esta jornada.' : '';
+  modal('Finalizar día de trabajo', 'Se registrará la fecha, la hora y la ubicación GPS actuales.<br>Actividades: <b>' + j.actividades.length +
+        '</b> · Evidencias: <b>' + j.evidencias.length + '</b>' + aviso,
+        [{ t: 'Cancelar' }, { t: 'Finalizar', c: 'btn', f: () => finalizar(false) }]);
+}
+async function finalizar(sinUbicacion) {
+  const j = S.activa; if (!j) return;
+  const btn = $('btnFinalizar'); btn.disabled = true; btn.textContent = '📍 Obteniendo ubicación…'; $('avisoFin').innerHTML = '';
+  let p = { error: 'Sin ubicación' };
+  if (!sinUbicacion) p = await posicion(true, 25000, 0);
+  btn.disabled = false; btn.textContent = '■ Finalizar día de trabajo';
+  if (p.error && !sinUbicacion) {
+    $('avisoFin').innerHTML = '<div class="aviso err">' + esc(p.error) + '</div>';
+    return modal('No se obtuvo la ubicación', esc(p.error) + '<br>Salga a un lugar despejado, verifique que el GPS esté activo y reintente.',
+      [{ t: 'Reintentar', c: 'btn', f: () => finalizar(false) }, { t: 'Finalizar sin GPS', c: 'btn2', f: () => finalizar(true) }]);
+  }
+  const s = sello();
+  j.fin = Object.assign(s, p.error ? { lat: null, lng: null, precision: null, obs: 'Finalizada sin ubicación GPS' } : { lat: p.lat, lng: p.lng, precision: p.precision });
+  j.estado = 'finalizada'; j.rev = (j.rev || 0) + 1;
+  S.pendientes.push(j);
+  S.historial.unshift({ id: j.id, fecha: j.inicio.fecha, funcionario: j.funcionario, lugar: j.lugar, ini: j.inicio.hora, fin: s.hora,
+                        nA: j.actividades.length, nE: j.evidencias.length });
+  S.historial = S.historial.slice(0, 15);
+  S.ultimoResumen = { lugar: j.lugar, fecha: s.fecha, hora: s.hora, lat: j.fin.lat, lng: j.fin.lng, precision: j.fin.precision };
+  S.activa = null; S.borrador.evAct = '';
+  guardar(true); render(); programarSync(0); toast('Jornada finalizada ' + s.hora);
+}
+
+/* ---------- Sincronización con Google Drive ---------- */
+let sincronizando = false, tSync = null;
+function programarSync(ms) { clearTimeout(tSync); tSync = setTimeout(sincronizar, ms == null ? 1500 : ms); }
+function jornadaPendiente(j) { return (j.rev || 0) > (j.revSinc || 0) || j.evidencias.some(e => e.tieneFoto && !e.fotoSubida); }
+function paraServidor(j) {
+  const c = JSON.parse(JSON.stringify(j)); c.evidencias.forEach(e => { delete e.thumb; }); return c;
+}
+async function sincronizar() {
+  if (!SERVER || sincronizando || !S.clave) return renderSync();
+  if (!navigator.onLine) return renderSync();
+  sincronizando = true; renderSync();
+  try {
+    const todas = [...S.pendientes, S.activa].filter(Boolean);
+    for (const j of todas) {
+      while ((j.rev || 0) > (j.revSinc || 0)) {
+        const rev = j.rev; await rpc('sincronizarJornada', paraServidor(j)); j.revSinc = rev; guardar();
+      }
+      // Solo fotos cuya fila ya existe en la hoja (instantánea tras sincronizar)
+      const porSubir = j.evidencias.filter(e => e.tieneFoto && !e.fotoSubida);
+      for (const e of porSubir) {
+        const data = await KV.get('f:' + e.id);
+        if (!data) { e.fotoSubida = true; e.url = ''; continue; }
+        const r = await rpc('subirFoto', j.id, e.id, data, { lugar: j.lugar, fecha: e.fecha, hora: e.hora,
+                             funcionario: j.funcionario, actividad: e.actividadNombre, comentario: e.comentario });
+        e.fotoSubida = true; e.url = r.url; await KV.del('f:' + e.id); guardar(); render();
+      }
+    }
+    S.pendientes = S.pendientes.filter(jornadaPendiente);
+    S.ultimaSync = sello().fecha + ' ' + sello().hora; S.ultimoError = '';
+  } catch (err) {
+    S.ultimoError = (err && err.message) ? err.message : String(err);
+    programarSync(30000);
+  }
+  sincronizando = false; guardar(); render();
+}
+async function cargarCatalogos() {
+  if (!SERVER || !navigator.onLine || !S.clave) return;
+  try { const c = await rpc('getCatalogos'); if (c && c.Actividades) { S.catalogos = c; guardar(); render(); } }
+  catch (e) { S.ultimoError = 'Catálogos: ' + (e.message || e); renderSync(); }
+}
+function contarPendientes() {
+  const t = [...S.pendientes, S.activa].filter(Boolean).filter(jornadaPendiente);
+  const fotos = t.reduce((n, j) => n + j.evidencias.filter(e => e.tieneFoto && !e.fotoSubida).length, 0);
+  return { jornadas: t.length, fotos };
+}
+function renderSync() {
+  const el = $('estadoSync'); const p = contarPendientes(); el.className = '';
+  if (!SERVER) { el.textContent = 'Modo local'; el.classList.add('off'); }
+  else if (sincronizando) { el.textContent = '⟳ Sincronizando…'; el.classList.add('pend'); }
+  else if (!navigator.onLine) { el.textContent = '⚠ Sin señal' + (p.jornadas ? ' · pendiente' : ''); el.classList.add('off'); }
+  else if (S.ultimoError) { el.textContent = /código/i.test(S.ultimoError) ? '⚠ Código incorrecto' : '⚠ Error · reintentando'; el.classList.add('err'); }
+  else if (p.jornadas) { el.textContent = '⟳ Pendiente' + (p.fotos ? ' (' + p.fotos + ' fotos)' : ''); el.classList.add('pend'); }
+  else { el.textContent = '✓ Sincronizado'; el.classList.add('ok'); }
+  $('pie').textContent = 'Google Drive' +
+    (S.ultimaSync ? ' · última sincronización ' + S.ultimaSync : '') + (S.ultimoError ? ' · ' + S.ultimoError : '');
+}
+$('estadoSync').addEventListener('click', () => { S.ultimoError = ''; sincronizar(); });
+window.addEventListener('online', () => { renderSync(); cargarCatalogos(); programarSync(500); });
+window.addEventListener('offline', renderSync);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { renderSync(); programarSync(1000); } });
+setInterval(() => { if (contarPendientes().jornadas) sincronizar(); }, 60000);
+
+/* ---------- Render ---------- */
+function opciones(sel, valores, actual, textoOtro, placeholder) {
+  let h = '<option value="">' + esc(placeholder) + '</option>';
+  valores.forEach(v => { h += '<option' + (v === actual ? ' selected' : '') + '>' + esc(v) + '</option>'; });
+  if (textoOtro) h += '<option value="' + OTRO + '"' + (actual === OTRO ? ' selected' : '') + '>' + esc(textoOtro) + '</option>';
+  sel.innerHTML = h;
+}
+function render() {
+  const j = S.activa;
+  const sinClave = !S.clave;
+  $('pClave').classList.toggle('oculto', !sinClave);
+  $('pInicio').classList.toggle('oculto', sinClave || !!j); $('pJornada').classList.toggle('oculto', sinClave || !j);
+  const b = S.borrador;
+
+  if (!j) {
+    opciones($('selFuncionario'), lista('Funcionarios'), S.funcionario, '＋ Agregar funcionario…', 'Seleccione…');
+    opciones($('selLugar'), lista('Lugares'), S.lugar, '＋ Agregar otro lugar…', 'Seleccione…');
+    setVal('nuevoFuncionario', b.nuevoFuncionario); setVal('nuevoLugar', b.nuevoLugar);
+    if (b.nuevoFuncionario) { $('selFuncionario').value = OTRO; $('nuevoFuncionarioBox').classList.remove('oculto'); }
+    if (b.nuevoLugar) { $('selLugar').value = OTRO; $('nuevoLugarBox').classList.remove('oculto'); }
+    const r = S.ultimoResumen;
+    $('resumenFinal').innerHTML = r ? '<div class="aviso ok">✓ Jornada finalizada en <b>' + esc(r.lugar) + '</b> el ' + esc(r.fecha) + ' a las ' + esc(r.hora) +
+      (r.lat != null ? '<br>📍 ' + r.lat + ', ' + r.lng + ' (±' + r.precision + ' m)' : '<br>Sin ubicación GPS') + '</div>' : '';
+    $('historialBox').classList.toggle('oculto', !S.historial.length);
+    $('historial').innerHTML = S.historial.map(h => {
+      const pend = S.pendientes.some(p => p.id === h.id);
+      return '<li><span class="hora">' + esc(h.fecha.slice(5)) + '</span><span class="det"><b>' + esc(h.lugar) + '</b> · ' + esc(h.funcionario) +
+        '<small>' + esc(h.ini) + ' – ' + esc(h.fin) + ' · ' + h.nA + ' actividades · ' + h.nE + ' evidencias</small></span>' +
+        '<span class="chip">' + (pend ? '⟳ pendiente' : '✓ en Drive') + '</span></li>';
+    }).join('');
+  } else {
+    $('infoJornada').innerHTML = '<b>Funcionario</b><span>' + esc(j.funcionario) + '</span><b>Lugar</b><span>' + esc(j.lugar) +
+      '</span><b>Inicio</b><span>' + esc(j.inicio.fecha) + ' · ' + esc(j.inicio.hora) + '</span>' +
+      (j.inicio.lat != null ? '<b>GPS inicio</b><span>' + j.inicio.lat + ', ' + j.inicio.lng + '</span>' : '');
+    opciones($('selActividad'), lista('Actividades'), b.actSel, '＋ Otra actividad (no contemplada)…', 'Seleccione la actividad…');
+    setVal('actOtra', b.actOtra); setVal('actComent', b.actComent); mostrarOtra();
+
+    $('sinActividades').classList.toggle('oculto', j.actividades.length > 0);
+    $('listaActividades').innerHTML = j.actividades.slice().reverse().map(a =>
+      '<li><span class="hora">' + esc(a.hora.slice(0, 5)) + '</span><span class="det"><b>' + esc(a.nombre) + '</b>' +
+      (a.comentario ? '<small>' + esc(a.comentario) + '</small>' : '') + '<small>' + esc(a.fecha) + (a.lat != null ? ' · 📍' : '') + '</small></span></li>').join('');
+
+    let evOpts = '<option value="">General (sin actividad específica)</option>';
+    j.actividades.forEach(a => { evOpts += '<option value="' + a.id + '"' + (b.evAct === a.id ? ' selected' : '') + '>' + esc(a.hora.slice(0, 5) + ' – ' + a.nombre) + '</option>'; });
+    $('evAct').innerHTML = evOpts;
+    setVal('evComent', b.evComent);
+    renderBorradorFotos();
+
+    $('listaEvidencias').innerHTML = j.evidencias.slice().reverse().map(e =>
+      '<li><span class="hora">' + esc(e.hora.slice(0, 5)) + '</span><span class="det"><b>' + esc(e.actividadNombre) + '</b>' +
+      (e.comentario ? '<small>' + esc(e.comentario) + '</small>' : '') +
+      (e.tieneFoto ? '<span class="estadoFoto">' + (e.fotoSubida ? '✓ foto en Drive' : '⟳ foto pendiente de subir') + '</span>' : '') + '</span>' +
+      (e.thumb ? '<img src="' + e.thumb + '" style="width:54px;height:54px;object-fit:cover;border-radius:8px">' : '') + '</li>').join('');
+  }
+  renderSync();
+}
+function setVal(id, v) { const el = $(id); v = v || ''; if (el.value !== v) el.value = v; }
+function renderBorradorFotos() {
+  $('thumbsBorrador').innerHTML = S.borrador.evFotos.map(f =>
+    '<div class="t"><img src="' + f.thumb + '"><button class="x" onclick="quitarFotoBorrador(\'' + f.id + '\')">×</button></div>').join('');
+}
+setInterval(() => {
+  if (!S.activa) return; const s = Math.max(0, Math.floor((Date.now() - new Date(S.activa.inicio.iso)) / 1000));
+  $('reloj').textContent = pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s % 3600 / 60)) + ':' + pad(s % 60);
+}, 1000);
+
+/* ---------- Arranque ---------- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+(async function () {
+  await cargar(); enlazarBorradores(); render();
+  if (S.activa) toast('Jornada en curso recuperada');
+  if (navigator.storage && navigator.storage.persist) { try { navigator.storage.persist(); } catch (e) {} }
+  await cargarCatalogos(); programarSync(800);
+})();
+</script>
+</body>
+</html>
