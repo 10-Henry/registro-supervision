@@ -421,7 +421,12 @@ $('btnInstalar').onclick = async () => {
 };
 $('btnGuiaOk').onclick = () => $('guia').classList.add('oculto');
 $('btnNoInstalar').onclick = () => { try { localStorage.setItem('dashNoInstalar', '1'); } catch (e) {} $('instalar').classList.add('oculto'); };
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  // Si llega una versión nueva del sitio, recarga una vez para mostrarla.
+  const habiaControl = !!navigator.serviceWorker.controller; let recargado = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (habiaControl && !recargado) { recargado = true; location.reload(); } });
+  navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {});
+}
 bannerInstalar();
 
 mostrar();
