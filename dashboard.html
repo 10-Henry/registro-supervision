@@ -85,6 +85,12 @@
   #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:4000;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw}
   #toast.ver{opacity:.95}
   .cargando{opacity:.5;pointer-events:none}
+  #instalar{display:flex;gap:10px;align-items:center;background:var(--verdeClaro);border:1px solid #bcd8c2;border-radius:14px;padding:12px;margin-bottom:12px}
+  #instalar .t{flex:1;font-size:14px;color:var(--verde)}
+  #instalar .btnI{background:var(--verde);color:#fff;border:0;border-radius:10px;padding:10px 12px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  #instalar .x{background:none;border:0;font-size:22px;color:var(--texto2);cursor:pointer;padding:0 4px}
+  #guia{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:3500;display:flex;align-items:flex-end;justify-content:center;padding:12px}
+  #guia .caja{background:#fff;border-radius:16px;padding:18px;max-width:440px;width:100%;font-size:15px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -106,6 +112,7 @@
 </header>
 
 <main>
+  <div id="instalar" class="oculto"><span class="t">📲 Agregue el dashboard a la pantalla de inicio para abrirlo con un toque.</span><button class="btnI" id="btnInstalar">Agregar</button><button class="x" id="btnNoInstalar" aria-label="Cerrar">×</button></div>
   <section id="pClave" class="card oculto">
     <h2>Acceso gerencial</h2>
     <p style="font-size:14px;color:var(--texto2);margin-top:0">Escriba el código de acceso del equipo gerencial. Se pide una sola vez en este dispositivo.</p>
@@ -137,6 +144,7 @@
 </main>
 
 <div id="visor" class="oculto"><img id="visorImg" alt=""><div class="txt" id="visorTxt"></div></div>
+<div id="guia" class="oculto"><div class="caja"><div id="guiaTxt"></div><br><button class="btn" id="btnGuiaOk">Entendido</button></div></div>
 <div id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -389,6 +397,32 @@ $('btnAnt').onclick = () => { const f = datos.fecha; const d = dias.find(x => x 
 $('btnSig').onclick = () => { const f = datos.fecha; const d = dias.slice().reverse().find(x => x > f); if (d) cargar(d); };
 $('visor').onclick = () => $('visor').classList.add('oculto');
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && datos && datos.fecha === dias[0]) cargar('', true); });
+
+/* ---------- Agregar a pantalla de inicio ---------- */
+let eventoInstalar = null;
+const esStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function bannerInstalar() {
+  let cerrado = false; try { cerrado = localStorage.getItem('dashNoInstalar') === '1'; } catch (e) {}
+  $('instalar').classList.toggle('oculto', esStandalone() || cerrado);
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); eventoInstalar = e; bannerInstalar(); });
+window.addEventListener('appinstalled', () => { $('instalar').classList.add('oculto'); toast('Dashboard agregado a la pantalla de inicio'); });
+$('btnInstalar').onclick = async () => {
+  if (eventoInstalar) {
+    eventoInstalar.prompt(); const r = await eventoInstalar.userChoice; eventoInstalar = null;
+    if (r.outcome === 'accepted') $('instalar').classList.add('oculto');
+    return;
+  }
+  $('guiaTxt').innerHTML = esIOS
+    ? '<b>Agregar en iPhone / iPad</b><br>1. Abra esta página en <b>Safari</b>.<br>2. Toque el botón <b>Compartir</b> (cuadro con flecha ↑).<br>3. Elija <b>"Agregar a inicio"</b> y toque <b>Agregar</b>.'
+    : '<b>Agregar a la pantalla de inicio</b><br>1. Toque el menú <b>⋮</b> del navegador (arriba a la derecha).<br>2. Elija <b>"Agregar a la pantalla de inicio"</b> o <b>"Instalar app"</b>.<br>3. Confirme con <b>Agregar</b>.';
+  $('guia').classList.remove('oculto');
+};
+$('btnGuiaOk').onclick = () => $('guia').classList.add('oculto');
+$('btnNoInstalar').onclick = () => { try { localStorage.setItem('dashNoInstalar', '1'); } catch (e) {} $('instalar').classList.add('oculto'); };
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+bannerInstalar();
 
 mostrar();
 if (clave) cargar(new URLSearchParams(location.search).get('fecha') || '');
