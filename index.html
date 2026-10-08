@@ -26,7 +26,7 @@
   .card h2{font-size:15px;margin:0 0 10px;color:var(--verde);display:flex;align-items:center;gap:8px}
   .num{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--verde);color:#fff;font-size:12px;align-items:center;justify-content:center;flex:none}
   label{display:block;font-size:13px;color:var(--gris);margin:8px 0 4px}
-  select,input[type=text],textarea{width:100%;font-size:16px;padding:11px 12px;border:1px solid var(--borde);border-radius:10px;background:#fff;color:#1d1d1d;font-family:inherit}
+  select,input[type=text],input[type=number],textarea{width:100%;font-size:16px;padding:11px 12px;border:1px solid var(--borde);border-radius:10px;background:#fff;color:#1d1d1d;font-family:inherit}
   textarea{min-height:70px;resize:vertical}
   select:disabled{background:#f1f1f1;color:#444}
   .fila{display:flex;gap:8px;align-items:stretch}.fila>*{flex:1}
@@ -141,8 +141,16 @@
         <label for="actOtra">Nombre de la actividad no contemplada</label>
         <input type="text" id="actOtra" data-draft="actOtra" placeholder="Escriba la actividad">
       </div>
-      <label for="actComent">Detalle (opcional): lote, cuadrilla, avance…</label>
-      <input type="text" id="actComent" data-draft="actComent" placeholder="Ej.: Lote 4, 6 trabajadores, 1,5 ha">
+      <label for="actLote">Lote</label>
+      <select id="actLote" data-draft="actLote"></select>
+      <div class="fila">
+        <div><label for="actArea">Área (ha)</label>
+          <input type="number" id="actArea" data-draft="actArea" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+        <div><label for="actTrab">N° trabajadores</label>
+          <input type="number" id="actTrab" data-draft="actTrab" inputmode="numeric" step="1" min="0" placeholder="0"></div>
+      </div>
+      <label for="actComent">Observaciones</label>
+      <textarea id="actComent" data-draft="actComent" placeholder="Observaciones de la actividad"></textarea>
       <button class="btn" style="width:100%;margin-top:10px" onclick="registrarActividad()">＋ Registrar actividad (hora automática)</button>
       <ul class="lista" id="listaActividades"></ul>
       <div class="vacio" id="sinActividades">Aún no hay actividades registradas.</div>
@@ -242,10 +250,10 @@ function estadoVacio() {
       'Fertilización química', 'Encalado', 'Abono orgánico', 'Atomización (fungicida/insecticida)',
       'Drench', 'Aplicación de Trichoderma', 'Resiembra', 'Siembra', 'Control de broca',
       'Manejo de sombra', 'Cosecha', 'Estimación de cosecha', 'Muestreo de suelo / foliar',
-      'Mantenimiento de caminos y drenajes', 'Supervisión de cuadrillas', 'Inspección fitosanitaria'], Funcionarios: [] },
+      'Mantenimiento de caminos y drenajes', 'Supervisión de cuadrillas', 'Inspección fitosanitaria'], Funcionarios: [], Lotes: [] },
     extras: { Lugares: [], Actividades: [], Funcionarios: [] },
     activa: null, pendientes: [], historial: [], ultimoResumen: null,
-    borrador: { nuevoFuncionario: '', nuevoLugar: '', actSel: '', actOtra: '', actComent: '', evAct: '', evComent: '', evFotos: [] },
+    borrador: { nuevoFuncionario: '', nuevoLugar: '', actSel: '', actOtra: '', actLote: '', actArea: '', actTrab: '', actComent: '', evAct: '', evComent: '', evFotos: [] },
     ultimaSync: '', ultimoError: ''
   };
 }
@@ -407,15 +415,21 @@ async function registrarActividad() {
   const j = S.activa; if (!j) return;
   let nombre = $('selActividad').value;
   if (!nombre) return toast('Seleccione una actividad');
+  const lote = $('actLote').value;
+  if (!lote) return toast('Seleccione el lote o "Sin lote"');
+  const area = $('actArea').value.trim(), trab = $('actTrab').value.trim();
+  if (area !== '' && !(Number(area) >= 0)) return toast('Área no válida');
+  if (trab !== '' && !(parseInt(trab, 10) >= 0)) return toast('N° de trabajadores no válido');
   if (nombre === OTRO) {
     nombre = $('actOtra').value.trim();
     if (!nombre) return toast('Escriba el nombre de la actividad');
     if (!lista('Actividades').some(x => x.toLowerCase() === nombre.toLowerCase())) S.extras.Actividades.push(nombre);
   }
   const s = sello();
-  const a = { id: uid('A'), nombre, comentario: $('actComent').value.trim(), fecha: s.fecha, hora: s.hora, iso: s.iso };
+  const a = { id: uid('A'), nombre, lote, area: area === '' ? '' : Number(area), trabajadores: trab === '' ? '' : parseInt(trab, 10),
+             comentario: $('actComent').value.trim(), fecha: s.fecha, hora: s.hora, iso: s.iso };
   j.actividades.push(a);
-  Object.assign(S.borrador, { actSel: '', actOtra: '', actComent: '', evAct: a.id });
+  Object.assign(S.borrador, { actSel: '', actOtra: '', actArea: '', actTrab: '', actComent: '', evAct: a.id });
   marcarCambio(); toast('Actividad registrada ' + s.hora);
   const p = await posicion(false, 10000, 300000);
   if (!p.error) { a.lat = p.lat; a.lng = p.lng; marcarCambio(); }
@@ -453,7 +467,7 @@ async function guardarEvidencia() {
 function pedirFinalizar() {
   const j = S.activa; if (!j) return;
   const b = S.borrador; const pend = [];
-  if (b.actComent || b.actOtra) pend.push('una actividad sin registrar');
+  if (b.actComent || b.actOtra || b.actArea || b.actTrab) pend.push('una actividad sin registrar');
   if (b.evFotos.length || b.evComent) pend.push('una evidencia sin guardar');
   const aviso = pend.length ? '<br><br><b style="color:#b3261e">Atención:</b> hay ' + pend.join(' y ') + '. Si continúa, quedará fuera de esta jornada.' : '';
   modal('Finalizar día de trabajo', 'Se registrará la fecha, la hora y la ubicación GPS actuales.<br>Actividades: <b>' + j.actividades.length +
@@ -581,14 +595,20 @@ function render() {
       (j.inicio.lat != null ? '<b>GPS inicio</b><span>' + j.inicio.lat + ', ' + j.inicio.lng + '</span>' : '');
     opciones($('selActividad'), lista('Actividades'), b.actSel, '＋ Otra actividad (no contemplada)…', 'Seleccione la actividad…');
     setVal('actOtra', b.actOtra); setVal('actComent', b.actComent); mostrarOtra();
+    const lotes = (S.catalogos.Lotes || []).filter(l => String(l.lugar).trim().toLowerCase() === String(j.lugar).trim().toLowerCase()).map(l => l.lote);
+    let lh = '<option value="">Seleccione el lote…</option><option value="Sin lote"' + (b.actLote === 'Sin lote' ? ' selected' : '') + '>Sin lote</option>';
+    lotes.forEach(l => { lh += '<option' + (l === b.actLote ? ' selected' : '') + '>' + esc(l) + '</option>'; });
+    $('actLote').innerHTML = lh;
+    setVal('actArea', b.actArea); setVal('actTrab', b.actTrab);
 
     $('sinActividades').classList.toggle('oculto', j.actividades.length > 0);
     $('listaActividades').innerHTML = j.actividades.slice().reverse().map(a =>
       '<li><span class="hora">' + esc(a.hora.slice(0, 5)) + '</span><span class="det"><b>' + esc(a.nombre) + '</b>' +
+      '<small>' + esc([a.lote, (a.area !== '' && a.area != null) ? a.area + ' ha' : '', a.trabajadores ? a.trabajadores + ' trab.' : ''].filter(Boolean).join(' · ')) + '</small>' +
       (a.comentario ? '<small>' + esc(a.comentario) + '</small>' : '') + '<small>' + esc(a.fecha) + (a.lat != null ? ' · 📍' : '') + '</small></span></li>').join('');
 
     let evOpts = '<option value="">General (sin actividad específica)</option>';
-    j.actividades.forEach(a => { evOpts += '<option value="' + a.id + '"' + (b.evAct === a.id ? ' selected' : '') + '>' + esc(a.hora.slice(0, 5) + ' – ' + a.nombre) + '</option>'; });
+    j.actividades.forEach(a => { evOpts += '<option value="' + a.id + '"' + (b.evAct === a.id ? ' selected' : '') + '>' + esc(a.hora.slice(0, 5) + ' – ' + a.nombre + (a.lote && a.lote !== 'Sin lote' ? ' (' + a.lote + ')' : '')) + '</option>'; });
     $('evAct').innerHTML = evOpts;
     setVal('evComent', b.evComent);
     renderBorradorFotos();

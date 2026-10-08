@@ -1,5 +1,5 @@
 /* Service worker: guarda la app en el teléfono para que abra sin internet. */
-const CACHE = 'registro-supervision-v1';
+const CACHE = 'registro-supervision-v2';
 const ARCHIVOS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
