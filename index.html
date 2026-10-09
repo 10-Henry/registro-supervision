@@ -67,6 +67,20 @@
   .pie{font-size:11px;color:var(--gris);text-align:center;margin-top:16px}
   .enlace{background:none;border:0;color:var(--verde2);font-size:12px;text-decoration:underline;padding:6px;font-weight:500}
   #bannerInstalar{display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .tarjetas{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .tarj{display:flex;align-items:center;gap:8px;text-align:left;background:var(--verdeClaro);color:var(--verde);font-size:14px;padding:12px 10px;border:1px solid #bcd8c2}
+  .tarj span{font-size:20px}
+  #pAplic fieldset{border:1px solid var(--borde);border-radius:12px;padding:10px 12px 12px;margin:0 0 12px;overflow-x:auto;min-width:0}
+  #pAplic legend{font-weight:700;color:var(--verde);font-size:14px;padding:0 6px}
+  #pAplic .rej{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+  #pAplic input[type=date]{width:100%;font-size:16px;padding:10px 10px;border:1px solid var(--borde);border-radius:10px;background:#fff;font-family:inherit}
+  table.ra{width:100%;min-width:520px;border-collapse:collapse;margin-top:6px}
+  table.ra th{font-size:12px;color:var(--gris);text-align:left;font-weight:600;padding:4px 3px;white-space:nowrap}
+  table.ra td{padding:3px}
+  table.ra input,table.ra select{padding:9px 7px;font-size:15px}
+  .xs{background:#fdecea;color:var(--rojo);padding:6px 10px;border-radius:8px;font-size:15px}
+  .mini{font-size:14px;padding:9px 12px;margin-top:8px}
+  .mini.rojo{background:#fdecea;color:var(--rojo)}
 </style>
 </head>
 <body>
@@ -170,13 +184,24 @@
       <ul class="lista" id="listaEvidencias"></ul>
     </div>
 
+    <div class="card" id="cardAplic">
+      <h2><span class="num">5</span> Registros de aplicaciones</h2>
+      <div class="vacio" style="margin:-4px 0 10px">Fertilización, encalado, abono, herbicidas, atomización, drench, nematicidas y Trichoderma (formato MARESPI).</div>
+      <div id="avisoBorrAplic"></div>
+      <div class="tarjetas" id="gridAplic"></div>
+      <ul class="lista" id="listaAplic"></ul>
+    </div>
+
     <div class="card">
-      <h2><span class="num">5</span> Finalizar día de trabajo</h2>
+      <h2><span class="num">6</span> Finalizar día de trabajo</h2>
       <div class="vacio">Registra fecha, hora y ubicación GPS de forma automática. Active la ubicación del teléfono.</div>
       <button id="btnFinalizar" class="btnGrande btnFin" onclick="pedirFinalizar()">■ Finalizar día de trabajo</button>
       <div id="avisoFin"></div>
     </div>
   </section>
+
+  <!-- ============ PANTALLA: FORMULARIO DE APLICACIÓN ============ -->
+  <section id="pAplic" class="oculto"></section>
 
   <div class="pie" id="pie"></div>
   <div style="text-align:center"><button class="enlace" onclick="cambiarClave()">Cambiar código de acceso</button></div>
@@ -252,7 +277,7 @@ function estadoVacio() {
       'Manejo de sombra', 'Cosecha', 'Estimación de cosecha', 'Muestreo de suelo / foliar',
       'Mantenimiento de caminos y drenajes', 'Supervisión de cuadrillas', 'Inspección fitosanitaria'], Funcionarios: [], Lotes: [] },
     extras: { Lugares: [], Actividades: [], Funcionarios: [] },
-    activa: null, pendientes: [], historial: [], ultimoResumen: null,
+    activa: null, pendientes: [], historial: [], ultimoResumen: null, aplic: null,
     borrador: { nuevoFuncionario: '', nuevoLugar: '', actSel: '', actOtra: '', actLote: '', actArea: '', actTrab: '', actComent: '', evAct: '', evComent: '', evFotos: [] },
     ultimaSync: '', ultimoError: ''
   };
@@ -324,6 +349,7 @@ async function rpc(fn, ...args) {
   let body;
   if (fn === 'getCatalogos') body = { accion: 'catalogos' };
   else if (fn === 'sincronizarJornada') body = { accion: 'jornada', datos: args[0] };
+  else if (fn === 'guardarAplicacion') body = { accion: 'aplicacion', datos: args[0] };
   else if (fn === 'subirFoto') body = { accion: 'foto', jornadaId: args[0], evidenciaId: args[1], dataUrl: args[2], meta: args[3] };
   else body = { accion: fn };
   body.clave = S.clave;
@@ -469,9 +495,10 @@ function pedirFinalizar() {
   const b = S.borrador; const pend = [];
   if (b.actComent || b.actOtra || b.actArea || b.actTrab) pend.push('una actividad sin registrar');
   if (b.evFotos.length || b.evComent) pend.push('una evidencia sin guardar');
+  if (S.aplic && aplicTieneDatos()) pend.push('un registro de ' + REG_APLIC[S.aplic.reg].t + ' sin guardar');
   const aviso = pend.length ? '<br><br><b style="color:#b3261e">Atención:</b> hay ' + pend.join(' y ') + '. Si continúa, quedará fuera de esta jornada.' : '';
   modal('Finalizar día de trabajo', 'Se registrará la fecha, la hora y la ubicación GPS actuales.<br>Actividades: <b>' + j.actividades.length +
-        '</b> · Evidencias: <b>' + j.evidencias.length + '</b>' + aviso,
+        '</b> · Evidencias: <b>' + j.evidencias.length + '</b> · Aplicaciones: <b>' + (j.aplicaciones || []).length + '</b>' + aviso,
         [{ t: 'Cancelar' }, { t: 'Finalizar', c: 'btn', f: () => finalizar(false) }]);
 }
 async function finalizar(sinUbicacion) {
@@ -490,19 +517,19 @@ async function finalizar(sinUbicacion) {
   j.estado = 'finalizada'; j.rev = (j.rev || 0) + 1;
   S.pendientes.push(j);
   S.historial.unshift({ id: j.id, fecha: j.inicio.fecha, funcionario: j.funcionario, lugar: j.lugar, ini: j.inicio.hora, fin: s.hora,
-                        nA: j.actividades.length, nE: j.evidencias.length });
+                        nA: j.actividades.length, nE: j.evidencias.length, nR: (j.aplicaciones || []).length });
   S.historial = S.historial.slice(0, 15);
   S.ultimoResumen = { lugar: j.lugar, fecha: s.fecha, hora: s.hora, lat: j.fin.lat, lng: j.fin.lng, precision: j.fin.precision };
-  S.activa = null; S.borrador.evAct = '';
+  S.activa = null; S.borrador.evAct = ''; S.aplic = null;
   guardar(true); render(); programarSync(0); toast('Jornada finalizada ' + s.hora);
 }
 
 /* ---------- Sincronización con Google Drive ---------- */
 let sincronizando = false, tSync = null;
 function programarSync(ms) { clearTimeout(tSync); tSync = setTimeout(sincronizar, ms == null ? 1500 : ms); }
-function jornadaPendiente(j) { return (j.rev || 0) > (j.revSinc || 0) || j.evidencias.some(e => e.tieneFoto && !e.fotoSubida); }
+function jornadaPendiente(j) { return (j.rev || 0) > (j.revSinc || 0) || j.evidencias.some(e => e.tieneFoto && !e.fotoSubida) || (j.aplicaciones || []).some(r => !r.enviado); }
 function paraServidor(j) {
-  const c = JSON.parse(JSON.stringify(j)); c.evidencias.forEach(e => { delete e.thumb; }); return c;
+  const c = JSON.parse(JSON.stringify(j)); c.evidencias.forEach(e => { delete e.thumb; }); delete c.aplicaciones; return c;
 }
 async function sincronizar() {
   if (!SERVER || sincronizando || !S.clave) return renderSync();
@@ -523,6 +550,11 @@ async function sincronizar() {
                              funcionario: j.funcionario, actividad: e.actividadNombre, comentario: e.comentario });
         e.fotoSubida = true; e.url = r.url; await KV.del('f:' + e.id); guardar(); render();
       }
+      // Registros de aplicaciones
+      for (const r of (j.aplicaciones || []).filter(x => !x.enviado)) {
+        await rpc('guardarAplicacion', aplicParaServidor(j, r));
+        r.enviado = true; guardar(); render();
+      }
     }
     S.pendientes = S.pendientes.filter(jornadaPendiente);
     S.ultimaSync = sello().fecha + ' ' + sello().hora; S.ultimoError = '';
@@ -540,7 +572,8 @@ async function cargarCatalogos() {
 function contarPendientes() {
   const t = [...S.pendientes, S.activa].filter(Boolean).filter(jornadaPendiente);
   const fotos = t.reduce((n, j) => n + j.evidencias.filter(e => e.tieneFoto && !e.fotoSubida).length, 0);
-  return { jornadas: t.length, fotos };
+  const regs = t.reduce((n, j) => n + (j.aplicaciones || []).filter(r => !r.enviado).length, 0);
+  return { jornadas: t.length, fotos, regs };
 }
 function renderSync() {
   const el = $('estadoSync'); const p = contarPendientes(); el.className = '';
@@ -559,6 +592,223 @@ window.addEventListener('offline', renderSync);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { renderSync(); programarSync(1000); } });
 setInterval(() => { if (contarPendientes().jornadas) sincronizar(); }, 60000);
 
+/* ---------- 5. Registros de aplicaciones (formato MARESPI) ---------- */
+const UNIDADES_DOSIS = ['cc/L', 'g/L', 'cc/bomba (20 L)', 'g/bomba (20 L)', 'cc/estañón (200 L)', 'g/estañón (200 L)',
+  'L/estañón (200 L)', 'kg/estañón (200 L)', 'L/ha', 'kg/ha', 'cc/planta', 'g/planta'];
+const REG_APLIC = {
+  fertilizacion: { t: 'Fertilizacion', ic: '🌱', d: 'Aplicacion de fertilizantes', cats: ['Fertilizante'], prod: 'Fertilizante', dosis: 'Dosis/planta (g)' },
+  encalado:      { t: 'Encalado', ic: '⚪', d: 'Aplicacion de enmiendas', cats: ['Enmienda'], prod: 'Enmienda', dosis: 'Dosis/planta (g)' },
+  abono:         { t: 'Abono organico', ic: '🍂', d: 'Aplicacion de compost', cats: ['Abono organico', 'Compost'], prod: 'Compost / abono', dosis: 'Dosis/planta (L)' },
+  herbicidas:    { t: 'Herbicidas', ic: '🌿', d: 'Aplicacion de herbicidas', cats: ['Herbicida', 'Coadyuvante'], mezcla: true },
+  atomizacion:   { t: 'Atomizacion', ic: '💨', d: 'Aplicacion foliar con atomizadora', cats: ['Fungicida', 'Insecticida', 'Fertilizante foliar', 'Biocontrolador', 'Coadyuvante'], mezcla: true },
+  drench:        { t: 'Drench o inyeccion', ic: '💧', d: 'Aplicacion al suelo o inyeccion', cats: ['Nematicida', 'Insecticida', 'Fungicida', 'Biocontrolador', 'Fertilizante soluble', 'Coadyuvante'], mezcla: true },
+  nematicidas:   { t: 'Nematicidas', ic: '🪱', d: 'Aplicacion de nematicidas', cats: ['Nematicida'], mezcla: true },
+  trichoderma:   { t: 'Trichoderma', ic: '🍄', d: 'Aplicacion de biocontroladores', cats: ['Biocontrolador'], mezcla: true }
+};
+const normTxt = s => String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+const singular = s => normTxt(s).split(/\s+/).map(w => w.replace(/ES$/, '').replace(/S$/, '').replace(/E$/, '')).join(' ');
+function filaVacia(reg) { return reg.mezcla ? null : { lote: '', prod: '', dosis: '', sacos: '', cuenta: '', horas: '' }; }
+function prodVacio() { return { producto: '', dosis: '', unidad: '' }; }
+function aplicVacia() { return { lote: '', volumen_l: '', cuenta: '', horas: '', productos: [prodVacio()] }; }
+function cuentasLista() { return unicos([...(S.catalogos.Cuentas && S.catalogos.Cuentas.length ? S.catalogos.Cuentas : ['Inversión', 'Producción'])]); }
+function fincasLista() { return unicos([...lista('Lugares'), ...(S.catalogos.Lotes || []).map(l => l.lugar)]); }
+function productosDe(reg) {
+  const P = S.catalogos.Productos || []; const cats = reg.cats.map(singular);
+  const f = P.filter(p => cats.indexOf(singular(p.cat)) >= 0);
+  return (f.length ? f : P);
+}
+let aplicConstruida = '';
+
+function abrirAplic(id) {
+  const j = S.activa; if (!j) return;
+  if (S.aplic && S.aplic.reg !== id && aplicTieneDatos()) {
+    return modal('Borrador sin guardar', 'Tiene un registro de <b>' + esc(REG_APLIC[S.aplic.reg].t) + '</b> sin guardar.',
+      [{ t: 'Continuar ese', c: 'btn', f: () => { aplicConstruida = ''; render(); window.scrollTo(0, 0); } },
+       { t: 'Descartarlo', c: 'btn2', f: () => { S.aplic = null; abrirAplic(id); } }]);
+  }
+  if (!S.aplic || S.aplic.reg !== id) {
+    const reg = REG_APLIC[id];
+    S.aplic = { reg: id, finca: j.lugar, fecha: sello().fecha, obs: '', filas: reg.mezcla ? [] : [filaVacia(reg)], aplics: reg.mezcla ? [aplicVacia()] : [] };
+  }
+  aplicConstruida = ''; guardar(); render(); window.scrollTo(0, 0);
+}
+function cerrarAplic() { aplicConstruida = ''; guardar(); render(); setTimeout(() => { const c = $('cardAplic'); c && c.scrollIntoView(); }, 50); }
+function descartarAplic() {
+  modal('Descartar registro', '¿Borrar lo escrito en este registro?', [{ t: 'No' }, { t: 'Sí, descartar', c: 'btn', f: () => { S.aplic = null; cerrarAplic(); } }]);
+}
+function aplicTieneDatos() {
+  const a = S.aplic; if (!a) return false;
+  if (a.obs) return true;
+  if (a.filas.some(f => Object.values(f).some(v => String(v).trim()))) return true;
+  return a.aplics.some(x => x.lote || x.volumen_l || x.cuenta || x.horas || x.productos.some(p => p.producto || p.dosis || p.unidad));
+}
+
+function dlHtml(id, vals) { return '<datalist id="' + id + '">' + vals.map(v => '<option value="' + esc(v) + '">').join('') + '</datalist>'; }
+function selHtml(path, vals, actual, ph) {
+  let h = '<select data-ap="' + path + '"><option value="">' + esc(ph || 'Seleccione…') + '</option>';
+  const vs = actual && vals.indexOf(actual) < 0 ? [...vals, actual] : vals;
+  vs.forEach(v => { h += '<option' + (v === actual ? ' selected' : '') + '>' + esc(v) + '</option>'; });
+  return h + '</select>';
+}
+function inHtml(path, v, tipo, extra) {
+  return '<input type="' + (tipo || 'text') + '" data-ap="' + path + '" value="' + esc(v) + '"' + (extra || '') +
+    (tipo === 'number' ? ' inputmode="decimal" step="any" min="0"' : '') + '>';
+}
+
+function construirAplic() {
+  const a = S.aplic; const reg = REG_APLIC[a.reg];
+  const lotes = ['Sin lote', ...(S.catalogos.Lotes || []).filter(l => normTxt(l.lugar) === normTxt(a.finca)).map(l => l.lote)];
+  const prods = productosDe(reg);
+  const cuentas = cuentasLista();
+  let h = '<div class="card"><button class="enlace" style="padding:0 0 8px" onclick="cerrarAplic()">← Volver a la jornada</button>' +
+    '<h2><span class="num">' + reg.ic + '</span> ' + esc(reg.t) + '</h2><div class="vacio" style="margin-top:-6px">' + esc(reg.d) + '</div>' +
+    dlHtml('ra_dl_lotes', lotes) + dlHtml('ra_dl_prod', prods.map(p => p.n));
+  h += '<fieldset><legend>Datos generales</legend><div class="rej">' +
+    '<div><label>Finca *</label>' + selHtml('finca', fincasLista(), a.finca) + '</div>' +
+    '<div><label>Fecha *</label>' + inHtml('fecha', a.fecha, 'date') + '</div></div>' +
+    '<div class="vacio">Registrado por: <b>' + esc(S.activa.funcionario) + '</b></div></fieldset>';
+  if (!reg.mezcla) {
+    h += '<fieldset><legend>Detalle de la aplicacion</legend><table class="ra"><thead><tr><th>Lote</th><th>' + esc(reg.prod) + '</th><th>' + esc(reg.dosis) +
+      '</th><th>Sacos</th><th>Cuenta</th><th>Horas</th><th></th></tr></thead><tbody>';
+    a.filas.forEach((f, i) => {
+      h += '<tr><td>' + inHtml('filas.' + i + '.lote', f.lote, 'text', ' list="ra_dl_lotes" placeholder="Lote"') + '</td>' +
+        '<td>' + inHtml('filas.' + i + '.prod', f.prod, 'text', ' list="ra_dl_prod" placeholder="' + esc(reg.prod) + '"') + '</td>' +
+        '<td>' + inHtml('filas.' + i + '.dosis', f.dosis, 'number') + '</td>' +
+        '<td>' + inHtml('filas.' + i + '.sacos', f.sacos, 'number') + '</td>' +
+        '<td>' + selHtml('filas.' + i + '.cuenta', cuentas, f.cuenta, '—') + '</td>' +
+        '<td>' + inHtml('filas.' + i + '.horas', f.horas, 'number') + '</td>' +
+        '<td><button class="xs" title="Quitar fila" onclick="quitarFilaAplic(' + i + ')">×</button></td></tr>';
+    });
+    h += '</tbody></table><button class="btn2 mini" onclick="agregarFilaAplic()">+ Agregar fila</button></fieldset>';
+  } else {
+    a.aplics.forEach((x, i) => {
+      h += '<fieldset><legend>Aplicacion ' + (i + 1) + '</legend><div class="rej">' +
+        '<div><label>Lote *</label>' + inHtml('aplics.' + i + '.lote', x.lote, 'text', ' list="ra_dl_lotes" placeholder="Lote"') + '</div>' +
+        '<div><label>Volumen aplicado (L) *</label>' + inHtml('aplics.' + i + '.volumen_l', x.volumen_l, 'number') + '</div>' +
+        '<div><label>Cuenta *</label>' + selHtml('aplics.' + i + '.cuenta', cuentas, x.cuenta) + '</div>' +
+        '<div><label>Horas *</label>' + inHtml('aplics.' + i + '.horas', x.horas, 'number') + '</div></div>' +
+        '<label>Productos de la mezcla</label><table class="ra"><thead><tr><th>Producto</th><th>Dosis</th><th>Unidad</th><th></th></tr></thead><tbody>';
+      x.productos.forEach((p, k) => {
+        h += '<tr><td>' + inHtml('aplics.' + i + '.productos.' + k + '.producto', p.producto, 'text', ' list="ra_dl_prod" placeholder="Producto"') + '</td>' +
+          '<td>' + inHtml('aplics.' + i + '.productos.' + k + '.dosis', p.dosis, 'number') + '</td>' +
+          '<td>' + selHtml('aplics.' + i + '.productos.' + k + '.unidad', UNIDADES_DOSIS, p.unidad, '—') + '</td>' +
+          '<td><button class="xs" title="Quitar producto" onclick="quitarProdAplic(' + i + ',' + k + ')">×</button></td></tr>';
+      });
+      h += '</tbody></table><div class="fila" style="margin-top:8px"><button class="btn2 mini" onclick="agregarProdAplic(' + i + ')">+ Agregar producto</button>' +
+        (a.aplics.length > 1 ? '<button class="btn2 mini rojo" onclick="quitarAplic(' + i + ')">Quitar aplicacion</button>' : '') + '</div></fieldset>';
+    });
+    h += '<button class="btn2" style="width:100%;margin-bottom:12px" onclick="agregarAplic()">+ Agregar otra aplicacion (otro lote)</button>';
+  }
+  h += '<fieldset><legend>Cierre</legend><label>Observaciones</label><textarea data-ap="obs">' + esc(a.obs) + '</textarea></fieldset>' +
+    '<button class="btnGrande btnInicio" onclick="guardarAplic()">💾 Guardar registro</button>' +
+    '<div id="avisoAplic"></div><div style="text-align:center;margin-top:8px"><button class="enlace" onclick="descartarAplic()">Descartar este registro</button></div></div>';
+  $('pAplic').innerHTML = h;
+  // Evita que al tocar un botón el foco salte y desplace la página (el toque caería en otro lugar)
+  $('pAplic').querySelectorAll('button').forEach(bt => bt.addEventListener('mousedown', e => e.preventDefault()));
+  $('pAplic').querySelectorAll('[data-ap]').forEach(el => {
+    el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => cambioAplic(el));
+    if (el.tagName === 'INPUT' && el.type === 'text') el.addEventListener('change', () => cambioAplic(el, true));
+  });
+}
+function setRuta(obj, ruta, v) { const p = ruta.split('.'); let o = obj; for (let i = 0; i < p.length - 1; i++) o = o[p[i]]; o[p[p.length - 1]] = v; }
+function cambioAplic(el, final) {
+  const a = S.aplic; if (!a) return; const ruta = el.dataset.ap;
+  setRuta(a, ruta, el.value); guardar();
+  if (ruta === 'finca') { aplicConstruida = ''; renderAplic(); return; }
+  // Producto: sugiere la unidad del catálogo si aún no hay una
+  const m = ruta.match(/^aplics\.(\d+)\.productos\.(\d+)\.producto$/);
+  if (m && final !== false) {
+    const p = (S.catalogos.Productos || []).find(x => normTxt(x.n) === normTxt(el.value));
+    const fila = a.aplics[+m[1]].productos[+m[2]];
+    if (p && p.u && !fila.unidad) {
+      const u = UNIDADES_DOSIS.find(x => normTxt(x) === normTxt(p.u));
+      if (u) { fila.unidad = u; const s = $('pAplic').querySelector('[data-ap="aplics.' + m[1] + '.productos.' + m[2] + '.unidad"]'); if (s) s.value = u; guardar(); }
+    }
+  }
+}
+function estructura(fn) { fn(S.aplic); aplicConstruida = ''; guardar(); renderAplic(); }
+function agregarFilaAplic() { estructura(a => a.filas.push(filaVacia(REG_APLIC[a.reg]))); }
+function quitarFilaAplic(i) { estructura(a => { a.filas.splice(i, 1); if (!a.filas.length) a.filas.push(filaVacia(REG_APLIC[a.reg])); }); }
+function agregarProdAplic(i) { estructura(a => a.aplics[i].productos.push(prodVacio())); }
+function quitarProdAplic(i, k) { estructura(a => { a.aplics[i].productos.splice(k, 1); if (!a.aplics[i].productos.length) a.aplics[i].productos.push(prodVacio()); }); }
+function agregarAplic() { estructura(a => a.aplics.push(aplicVacia())); setTimeout(() => { const f = $('pAplic').querySelectorAll('fieldset'); f.length > 2 && f[f.length - 2].scrollIntoView(); }, 50); }
+function quitarAplic(i) { modal('Quitar aplicacion', '¿Quitar la aplicacion ' + (i + 1) + '?', [{ t: 'No' }, { t: 'Quitar', c: 'btn', f: () => estructura(a => a.aplics.splice(i, 1)) }]); }
+
+function errAplic(msg) { $('avisoAplic').innerHTML = '<div class="aviso err">' + esc(msg) + '</div>'; toast(msg); }
+function guardarAplic() {
+  const j = S.activa, a = S.aplic; if (!j || !a) return;
+  const reg = REG_APLIC[a.reg]; const t = v => String(v == null ? '' : v).trim();
+  const okNum = v => t(v) !== '' && Number(v) >= 0;
+  if (!t(a.finca)) return errAplic('Seleccione la finca');
+  if (!t(a.fecha)) return errAplic('Indique la fecha');
+  const reg2 = { id: '', registro: a.reg, titulo: reg.t, finca: t(a.finca), fecha: t(a.fecha), observaciones: t(a.obs) };
+  if (!reg.mezcla) {
+    const filas = [];
+    for (let i = 0; i < a.filas.length; i++) {
+      const f = a.filas[i]; const vals = ['lote', 'prod', 'dosis', 'sacos', 'cuenta', 'horas'].map(k => t(f[k]));
+      if (vals.every(v => v === '')) continue;
+      if (vals.some(v => v === '')) return errAplic('Fila ' + (i + 1) + ': complete todas las columnas o deje la fila vacía');
+      if (!okNum(f.dosis) || !okNum(f.sacos) || !okNum(f.horas)) return errAplic('Fila ' + (i + 1) + ': revise los números');
+      filas.push({ lote: t(f.lote), prod: t(f.prod), dosis: Number(f.dosis), sacos: Number(f.sacos), cuenta: t(f.cuenta), horas: Number(f.horas) });
+    }
+    if (!filas.length) return errAplic('Agregue al menos una fila completa');
+    reg2.filas = filas;
+  } else {
+    const aplics = [];
+    for (let i = 0; i < a.aplics.length; i++) {
+      const x = a.aplics[i]; const n = 'Aplicacion ' + (i + 1) + ': ';
+      if (!t(x.lote)) return errAplic(n + 'indique el lote');
+      if (!okNum(x.volumen_l)) return errAplic(n + 'indique el volumen aplicado (L)');
+      if (!t(x.cuenta)) return errAplic(n + 'seleccione la cuenta');
+      if (!okNum(x.horas)) return errAplic(n + 'indique las horas');
+      const prods = [];
+      for (let k = 0; k < x.productos.length; k++) {
+        const p = x.productos[k];
+        if (!t(p.producto) && !t(p.dosis) && !t(p.unidad)) continue;
+        if (!t(p.producto) || !okNum(p.dosis) || !t(p.unidad)) return errAplic(n + 'producto ' + (k + 1) + ' requiere producto, dosis y unidad');
+        prods.push({ producto: t(p.producto), dosis: Number(p.dosis), unidad: t(p.unidad) });
+      }
+      if (!prods.length) return errAplic(n + 'agregue al menos un producto');
+      aplics.push({ lote: t(x.lote), volumen_l: Number(x.volumen_l), cuenta: t(x.cuenta), horas: Number(x.horas), productos: prods });
+    }
+    if (!aplics.length) return errAplic('Agregue al menos una aplicacion');
+    reg2.aplics = aplics;
+  }
+  const d = new Date(), s = sello(d);
+  reg2.id = a.reg.toUpperCase().slice(0, 4) + '-' + s.fecha.replace(/-/g, '') + '-' + s.hora.replace(/:/g, '') + '-' + Math.random().toString(36).slice(2, 4).toUpperCase();
+  reg2.marca = s.fecha + ' ' + s.hora; reg2.hora = s.hora; reg2.enviado = false;
+  if (!j.aplicaciones) j.aplicaciones = [];
+  j.aplicaciones.push(reg2);
+  S.aplic = null; aplicConstruida = '';
+  marcarCambio(); toast('Registro de ' + reg.t + ' guardado ' + s.hora);
+  setTimeout(() => { const c = $('cardAplic'); c && c.scrollIntoView(); }, 50);
+}
+function aplicParaServidor(j, r) {
+  const c = JSON.parse(JSON.stringify(r)); delete c.enviado; delete c.hora; delete c.titulo;
+  c.operario = j.funcionario; c.idJornada = j.id; return c;
+}
+function resumenAplic(r) {
+  if (r.filas) return r.filas.length + (r.filas.length === 1 ? ' fila' : ' filas') + ' · ' + unicos(r.filas.map(f => f.lote)).join(', ');
+  const np = r.aplics.reduce((n, x) => n + x.productos.length, 0);
+  return r.aplics.length + (r.aplics.length === 1 ? ' aplicación' : ' aplicaciones') + ' · ' + np + ' productos · ' + unicos(r.aplics.map(x => x.lote)).join(', ');
+}
+function renderAplicCard(j) {
+  $('gridAplic').innerHTML = Object.keys(REG_APLIC).map(id => '<button class="tarj" onclick="abrirAplic(\'' + id + '\')"><span>' + REG_APLIC[id].ic + '</span>' + esc(REG_APLIC[id].t) + '</button>').join('');
+  $('avisoBorrAplic').innerHTML = S.aplic ? '<div class="aviso">Hay un registro de <b>' + esc(REG_APLIC[S.aplic.reg].t) +
+    '</b> sin guardar. <button class="enlace" onclick="abrirAplic(\'' + S.aplic.reg + '\')">Continuar</button></div>' : '';
+  const L = (j.aplicaciones || []).slice().reverse();
+  $('listaAplic').innerHTML = L.map(r => '<li><span class="hora">' + esc(r.hora.slice(0, 5)) + '</span><span class="det"><b>' + esc(r.titulo) + '</b>' +
+    '<small>' + esc(r.finca + ' · ' + r.fecha) + '</small><small>' + esc(resumenAplic(r)) + '</small></span>' +
+    '<span class="chip">' + (r.enviado ? '✓ en Drive' : '⟳ pendiente') + '</span></li>').join('');
+}
+function renderAplic() {
+  const ver = !!(S.activa && S.aplic && S.clave);
+  $('pAplic').classList.toggle('oculto', !ver);
+  if (!ver) { aplicConstruida = ''; return; }
+  const clave = S.aplic.reg + '|' + S.activa.id;
+  if (aplicConstruida !== clave) { construirAplic(); aplicConstruida = clave; }
+}
+
 /* ---------- Render ---------- */
 function opciones(sel, valores, actual, textoOtro, placeholder) {
   let h = '<option value="">' + esc(placeholder) + '</option>';
@@ -570,7 +820,8 @@ function render() {
   const j = S.activa;
   const sinClave = !S.clave;
   $('pClave').classList.toggle('oculto', !sinClave);
-  $('pInicio').classList.toggle('oculto', sinClave || !!j); $('pJornada').classList.toggle('oculto', sinClave || !j);
+  $('pInicio').classList.toggle('oculto', sinClave || !!j); $('pJornada').classList.toggle('oculto', sinClave || !j || !!S.aplic);
+  renderAplic();
   const b = S.borrador;
 
   if (!j) {
@@ -586,7 +837,7 @@ function render() {
     $('historial').innerHTML = S.historial.map(h => {
       const pend = S.pendientes.some(p => p.id === h.id);
       return '<li><span class="hora">' + esc(h.fecha.slice(5)) + '</span><span class="det"><b>' + esc(h.lugar) + '</b> · ' + esc(h.funcionario) +
-        '<small>' + esc(h.ini) + ' – ' + esc(h.fin) + ' · ' + h.nA + ' actividades · ' + h.nE + ' evidencias</small></span>' +
+        '<small>' + esc(h.ini) + ' – ' + esc(h.fin) + ' · ' + h.nA + ' actividades · ' + h.nE + ' evidencias' + (h.nR ? ' · ' + h.nR + ' aplicaciones' : '') + '</small></span>' +
         '<span class="chip">' + (pend ? '⟳ pendiente' : '✓ en Drive') + '</span></li>';
     }).join('');
   } else {
@@ -612,6 +863,7 @@ function render() {
     $('evAct').innerHTML = evOpts;
     setVal('evComent', b.evComent);
     renderBorradorFotos();
+    renderAplicCard(j);
 
     $('listaEvidencias').innerHTML = j.evidencias.slice().reverse().map(e =>
       '<li><span class="hora">' + esc(e.hora.slice(0, 5)) + '</span><span class="det"><b>' + esc(e.actividadNombre) + '</b>' +
